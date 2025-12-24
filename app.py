@@ -22,6 +22,14 @@ df = yf.download(
 
 df = df.dropna()
 
+# FIX: Convert index to IST and normalize to date
+df.index = (
+    df.index
+    .tz_localize("UTC")
+    .tz_convert("Asia/Kolkata")
+    .normalize()
+)
+
 now = datetime.now(IST)
 
 # Drop today's candle if market is open
