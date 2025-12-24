@@ -1,10 +1,23 @@
-import streamlit as st
-from udts_logic import compute_udts
+def compute_udts(open_series, close_series):
+    """
+    SAFE v1:
+    - Determines only the LAST candle color
+    - Uses ONLY float comparisons
+    """
 
-st.set_page_config(layout="wide")
+    if open_series is None or close_series is None:
+        return "Neutral"
 
-st.title("UDTS Diagnostic")
+    if len(open_series) == 0:
+        return "Neutral"
 
-result = compute_udts(None, None)
+    # Force scalar extraction
+    last_open = float(open_series.iloc[-1])
+    last_close = float(close_series.iloc[-1])
 
-st.success(f"UDTS import worked: {result}")
+    if last_close > last_open:
+        return "Green"
+    elif last_close < last_open:
+        return "Red"
+    else:
+        return "Neutral"
