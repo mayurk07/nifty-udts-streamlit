@@ -15,7 +15,7 @@ st.title("NSE UDTS Screener")
 st.caption(f"Last updated: {datetime.now(IST).strftime('%d %b %Y %H:%M:%S IST')}")
 
 if st.button("Force Refresh"):
-    st.experimental_rerun()
+    st.rerun()
 
 rows = []
 
