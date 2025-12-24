@@ -37,12 +37,17 @@ def fetch_history(symbol, interval, period):
 
 
 def score_from_udts(result):
-    if result == "UDTS Up":
-        return 100
-    if result == "UDTS Down":
-        return -100
-    return 0
+    if result is None:
+        return 0
 
+    r = result.lower()
+
+    if "up" in r:
+        return 100
+    if "down" in r:
+        return -100
+
+    return 0
 
 # -------------------------------------------------
 # Fetch data
