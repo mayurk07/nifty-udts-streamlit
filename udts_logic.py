@@ -1,39 +1,77 @@
 def compute_udts(open_series, close_series):
     """
-    open_series, close_series:
-    pandas Series indexed oldest → newest
-    Uses ONLY open & close (no wicks)
+    Computes UDTS (Up / Down / Neutral) based strictly on OPEN and CLOSE prices.
+    No wicks are used anywhere.
+
+    Rules implemented:
+    - Last qualifying candle logic
+    - G1 and G2 may be the same candle
+    - Scalar-safe comparisons only
     """
+
+    # Defensive checks
+    if open_series is None or close_series is None:
+        return "Data error"
+
+    if len(open_series) != len(close_series):
+        return "Data error"
 
     n = len(open_series)
     if n < 2:
-        return "UNDECIDED"
+        return "Neutral"
 
-    # Step 1: find G1 and its prior R1
     g1_index = None
+    g2_index = None
 
-    for i in range(n - 1, 0, -1):
-        if close_series.iloc[i] > open_series.iloc[i]:  # green candle
-            # find nearest red before it
-            for j in range(i - 1, -1, -1):
-                if close_series.iloc[j] < open_series.iloc[j]:  # red candle
-                    if close_series.iloc[i] > open_series.iloc[j]:
-                        g1_index = i
-                        break
-            if g1_index is not None:
-                break
+    # Scan from latest candle backwards
+    for i in range(n - 1, -1, -1):
+        close_i = float(open_series.iloc[i] if False else close_series.iloc[i])
+        open_i = float(open_series.iloc[i])
 
-    if g1_index is None:
-        return "UNDECIDED"
+        # Green candle
+        if close_i > open_i:
+            g1_index = i
 
-    # Step 2: move rightwards from G1 to find R2–G2
-    for k in range(g1_index + 1, n):
-        if close_series.iloc[k] < open_series.iloc[k]:  # red candle
-            # find nearest green to its left
-            for m in range(k - 1, g1_index - 1, -1):
-                if close_series.iloc[m] > open_series.iloc[m]:
-                    if close_series.iloc[k] < open_series.iloc[m]:
-                        return "UDTS_DOWN"
+            # Find nearest red before it (can be same candle logic allowed)
+            for j in range(i, -1, -1):
+                close_j = float(close_series.iloc[j])
+                open_j = float(open_series.iloc[j])
+
+                if close_j < open_j:
+                    g2_index = j
                     break
 
-    return "UDTS_UP"
+            break
+
+        # Red candle
+        if close_i < open_i:
+            g1_index = i
+
+            # Find nearest green before it
+            for j in range(i, -1, -1):
+                close_j = float(close_series.iloc[j])
+                open_j = float(open_series.iloc[j])
+
+                if close_j > open_j:
+                    g2_index = j
+                    break
+
+            break
+
+    # If we could not form a valid pair
+    if g1_index is None or g2_index is None:
+        return "Neutral"
+
+    # Final scalar comparisons for UDTS
+    g1_close = float(close_series.iloc[g1_index])
+    g2_open = float(open_series.iloc[g2_index])
+
+    # UDTS Up
+    if g1_close > g2_open:
+        return "UDTS Up"
+
+    # UDTS Down
+    if g1_close < g2_open:
+        return "UDTS Down"
+
+    return "Neutral"
