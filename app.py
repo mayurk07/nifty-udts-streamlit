@@ -9,7 +9,7 @@ from udts_logic import compute_udts
 # Config
 # -------------------------------------------------
 st.set_page_config(layout="wide")
-st.title("UDTS – Iteration 1 (Single Stock, All Timeframes)")
+st.title("UDTS – Iteration 1 (Single Stock with Scoring)")
 
 IST = pytz.timezone("Asia/Kolkata")
 symbol = "INFY.NS"
@@ -36,6 +36,14 @@ def fetch_history(symbol, interval, period):
     return df
 
 
+def score_from_udts(result):
+    if result == "UDTS Up":
+        return 100
+    if result == "UDTS Down":
+        return -100
+    return 0
+
+
 # -------------------------------------------------
 # Fetch data
 # -------------------------------------------------
@@ -46,39 +54,55 @@ hourly_df  = fetch_history(symbol, "60m", "10d")
 m15_df     = fetch_history(symbol, "15m", "5d")
 
 # -------------------------------------------------
-# Drop forming candles where required
+# Drop forming candles
 # -------------------------------------------------
 now = datetime.now(IST)
 
-# Daily – drop today if market open
+# Daily
 if time(9, 15) <= now.time() <= time(15, 30):
     daily_df = daily_df.iloc[:-1]
 
-# Hourly & 15m – always drop last candle (forming)
+# Intraday
 hourly_df = hourly_df.iloc[:-1]
 m15_df = m15_df.iloc[:-1]
 
-# Weekly / Monthly – for now, use last closed candle only
+# Weekly / Monthly (closed only)
 weekly_df = weekly_df.iloc[:-1]
 monthly_df = monthly_df.iloc[:-1]
 
 # -------------------------------------------------
-# Run UDTS
+# UDTS + scoring
 # -------------------------------------------------
-results = {
-    "Monthly": compute_udts(monthly_df["Open"], monthly_df["Close"]),
-    "Weekly":  compute_udts(weekly_df["Open"], weekly_df["Close"]),
-    "Daily":   compute_udts(daily_df["Open"], daily_df["Close"]),
-    "Hourly":  compute_udts(hourly_df["Open"], hourly_df["Close"]),
-    "15 Min":  compute_udts(m15_df["Open"], m15_df["Close"]),
-}
+rows = []
+
+for tf, df in [
+    ("Monthly", monthly_df),
+    ("Weekly", weekly_df),
+    ("Daily", daily_df),
+    ("Hourly", hourly_df),
+    ("15 Min", m15_df),
+]:
+    udts = compute_udts(df["Open"], df["Close"])
+    score = score_from_udts(udts)
+
+    rows.append({
+        "Timeframe": tf,
+        "UDTS": udts,
+        "Score": score,
+    })
+
+total_score = sum(r["Score"] for r in rows)
 
 # -------------------------------------------------
 # Display
 # -------------------------------------------------
-st.subheader(f"{symbol} – UDTS status")
+st.subheader(f"{symbol} – Trend Scores")
 
-for tf, res in results.items():
-    st.write(f"**{tf}** : {res}")
+st.table(rows)
 
-st.caption("Iteration 1: Yahoo Finance data, open/close only, fully closed candles")
+st.markdown(f"### **Total Trend Score: {total_score}**")
+
+st.caption(
+    "Iteration 1 – Step 2: "
+    "UDTS-based scoring (+100 / −100 / 0) across 5 timeframes"
+)
