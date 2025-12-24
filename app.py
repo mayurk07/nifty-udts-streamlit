@@ -1,45 +1,45 @@
-import streamlit as st
-import yfinance as yf
-import pandas as pd
-from datetime import datetime
-import pytz
+def compute_udts(open_series, close_series):
+    """
+    Returns:
+    - "UDTS_UP"
+    - "UDTS_DOWN"
+    - "NO_UDTS"
+    """
 
-from udts_logic import compute_udts
+    if len(open_series) < 2:
+        return "NO_UDTS"
 
-st.set_page_config(layout="wide")
+    last_green_idx = None
+    last_red_idx = None
 
-st.title("NSE UDTS Screener")
-st.caption(f"Last updated: {datetime.now(pytz.timezone('Asia/Kolkata')).strftime('%d %b %Y %H:%M:%S IST')}")
+    for i in range(len(open_series) - 1, -1, -1):
+        o = float(open_series.iloc[i].item())
+        c = float(close_series.iloc[i].item())
 
-st.button("Force Refresh")
+        if c > o and last_green_idx is None:
+            last_green_idx = i
 
-st.subheader("Step 5: Single Stock – Daily Timeframe")
+        if c < o and last_red_idx is None:
+            last_red_idx = i
 
-symbol = "INFY.NS"
+        if last_green_idx is not None and last_red_idx is not None:
+            break
 
-@st.cache_data(ttl=900)
-def load_daily_data(sym):
-    df = yf.download(
-        sym,
-        period="2mo",
-        interval="1d",
-        progress=False
-    )
-    df = df.dropna()
-    return df.tail(24)
+    if last_green_idx is None or last_red_idx is None:
+        return "NO_UDTS"
 
-df = load_daily_data(symbol)
+    # UDTS UP: green close > prior red open
+    if last_green_idx > last_red_idx:
+        green_close = float(close_series.iloc[last_green_idx].item())
+        red_open = float(open_series.iloc[last_red_idx].item())
+        if green_close > red_open:
+            return "UDTS_UP"
 
-if df.empty:
-    st.error("No data received from Yahoo Finance")
-    st.stop()
+    # UDTS DOWN: red close < prior green open
+    if last_red_idx > last_green_idx:
+        red_close = float(close_series.iloc[last_red_idx].item())
+        green_open = float(open_series.iloc[last_green_idx].item())
+        if red_close < green_open:
+            return "UDTS_DOWN"
 
-open_series = df["Open"]
-close_series = df["Close"]
-
-udts_result = compute_udts(open_series, close_series)
-
-st.write("### Raw OHLC (last 24 daily candles)")
-st.dataframe(df[["Open", "Close"]])
-
-st.success(f"UDTS Result for {symbol} (Daily): {udts_result}")
+    return "NO_UDTS"
