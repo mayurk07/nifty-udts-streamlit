@@ -1,23 +1,20 @@
-import streamlit as st
-import yfinance as yf
-from udts_logic import compute_udts
+import pytz
+from datetime import datetime, time
 
-st.set_page_config(layout="wide")
-
-st.title("UDTS Step 6 – Candle Color Check")
-
-symbol = "INFY.NS"
+IST = pytz.timezone("Asia/Kolkata")
 
 df = yf.download(
     symbol,
-    period="1mo",
+    period="2mo",
     interval="1d",
+    auto_adjust=False,
     progress=False
 )
 
 df = df.dropna()
 
-result = compute_udts(df["Open"], df["Close"])
+now = datetime.now(IST)
 
-st.write(f"Last daily candle for {symbol}: {result}")
-st.dataframe(df[["Open", "Close"]].tail(10))
+# If market is open, drop today's candle
+if time(9, 15) <= now.time() <= time(15, 30):
+    df = df.iloc[:-1]
