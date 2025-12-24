@@ -15,7 +15,7 @@ st.button("Force Refresh")
 
 st.subheader("Step 5: Single Stock – Daily Timeframe")
 
-symbol = "RELIANCE.NS"
+symbol = "INFY.NS"
 
 @st.cache_data(ttl=900)
 def load_daily_data(sym):
